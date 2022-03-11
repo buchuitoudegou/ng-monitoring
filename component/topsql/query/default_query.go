@@ -265,6 +265,7 @@ type sqlGroup struct {
 	sqlDigest  string
 	planSeries []planSeries
 	valueSum   uint64
+	brieCmd    string
 }
 
 func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs int, endSecs int, windowSecs int, instance, instanceType string, metricResponse *recordsMetricResp) error {
@@ -453,6 +454,7 @@ func groupBySQLDigest(resp []recordsMetricRespDataResult, target *[]sqlGroup) (o
 	for _, r := range resp {
 		group := m[r.Metric.SQLDigest]
 		group.sqlDigest = r.Metric.SQLDigest
+		group.brieCmd = r.Metric.BRIECommand
 
 		var ps *planSeries
 
@@ -499,6 +501,7 @@ func groupBySQLDigest(resp []recordsMetricRespDataResult, target *[]sqlGroup) (o
 			sqlDigest:  group.sqlDigest,
 			planSeries: group.planSeries,
 			valueSum:   group.valueSum,
+			brieCmd:    group.brieCmd,
 		})
 	}
 
@@ -580,6 +583,10 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill func(R
 				if err == nil {
 					_ = document.Scan(r, &sqlText)
 				}
+			}
+			if sqlText == "" && group.brieCmd != "" {
+				// sql text not found
+				sqlText = group.brieCmd
 			}
 
 			item := RecordItem{

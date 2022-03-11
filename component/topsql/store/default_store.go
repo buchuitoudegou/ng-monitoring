@@ -209,6 +209,7 @@ func rsMeteringProtoToMetrics(
 	instance, instanceType string,
 	record *rsmetering.ResourceUsageRecord,
 ) (ms []Metric, err error) {
+	var brieCmd []byte
 	tag := tipb.ResourceGroupTag{}
 	tag.Reset()
 	if err = tag.Unmarshal(record.GetRecord().ResourceGroupTag); err != nil {
@@ -216,7 +217,19 @@ func rsMeteringProtoToMetrics(
 	}
 	sqlDigest := hex.EncodeToString(tag.SqlDigest)
 	planDigest := hex.EncodeToString(tag.PlanDigest)
-
+	cmdBuilder := []func() []byte{
+		tag.GetBackupCmd,
+		tag.GetRestoreCmd,
+		tag.GetCdcJob,
+		tag.GetImport,
+	}
+	for _, builder := range cmdBuilder {
+		if brieCmd = builder(); brieCmd != nil {
+			// get command from tag
+			break
+		}
+	}
+	log.Info("get brie cmd", zap.String("brieCmd", string(brieCmd)))
 	mCpu := Metric{
 		Metric: recordTags{
 			Name:         MetricNameCPUTime,
@@ -224,6 +237,7 @@ func rsMeteringProtoToMetrics(
 			InstanceType: instanceType,
 			SQLDigest:    sqlDigest,
 			PlanDigest:   planDigest,
+			BRIECommand:  string(brieCmd),
 		},
 	}
 	mReadRow := Metric{
@@ -233,6 +247,7 @@ func rsMeteringProtoToMetrics(
 			InstanceType: instanceType,
 			SQLDigest:    sqlDigest,
 			PlanDigest:   planDigest,
+			BRIECommand:  string(brieCmd),
 		},
 	}
 	mReadIndex := Metric{
@@ -242,6 +257,7 @@ func rsMeteringProtoToMetrics(
 			InstanceType: instanceType,
 			SQLDigest:    sqlDigest,
 			PlanDigest:   planDigest,
+			BRIECommand:  string(brieCmd),
 		},
 	}
 	mWriteRow := Metric{
@@ -251,6 +267,7 @@ func rsMeteringProtoToMetrics(
 			InstanceType: instanceType,
 			SQLDigest:    sqlDigest,
 			PlanDigest:   planDigest,
+			BRIECommand:  string(brieCmd),
 		},
 	}
 	mWriteIndex := Metric{
@@ -260,6 +277,7 @@ func rsMeteringProtoToMetrics(
 			InstanceType: instanceType,
 			SQLDigest:    sqlDigest,
 			PlanDigest:   planDigest,
+			BRIECommand:  string(brieCmd),
 		},
 	}
 
